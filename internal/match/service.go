@@ -84,47 +84,53 @@ func (s *matchService) GetMatches(ctx context.Context, userID string, page, limi
 }
 
 func (s *matchService) calculateScore(current, cand *profile.Profile) int {
-	score := 0
+	var totalScore float64 = 0
 
-	// Same Church (+3)
-	if current.Church == cand.Church {
-		score += 3
-	}
-
-	// Shared Values (+1 each)
-	valuesMap := make(map[string]bool)
-	for _, v := range current.Values {
-		valuesMap[v] = true
-	}
-	for _, v := range cand.Values {
-		if valuesMap[v] {
-			score += 1
+	// 1. SPIRITUAL FOUNDATION (50%)
+	// Weight: 50 points based on shared values ratio
+	if len(current.Values) > 0 {
+		sharedCount := 0
+		valuesMap := make(map[string]bool)
+		for _, v := range current.Values {
+			valuesMap[v] = true
 		}
+		for _, v := range cand.Values {
+			if valuesMap[v] {
+				sharedCount++
+			}
+		}
+		// Calculate percentage of MY values that they share
+		valueRatio := float64(sharedCount) / float64(len(current.Values))
+		totalScore += valueRatio * 50
 	}
 
-	// Gender Preference Match (+2): candidate's gender matches what current user prefers
-	if current.PreferredGender == "any" || current.PreferredGender == cand.Gender {
-		score += 2
+	// 2. CHURCH COMMUNITY (30%)
+	// Weight: 30 points for same church
+	if current.Church != "" && cand.Church != "" && current.Church == cand.Church {
+		totalScore += 30
 	}
 
-	// Mutual Interest (+1): candidate also prefers current user's gender
-	if cand.PreferredGender == "any" || cand.PreferredGender == current.Gender {
-		score += 1
-	}
-
-	// Age Range Compatibility (+1 each direction)
+	// 3. LIFESTAGE & COMPATIBILITY (20%)
+	// Weight: 10 points for age range match (mutual)
+	ageScore := 0
 	if current.MinAge > 0 && current.MaxAge > 0 {
 		if cand.Age >= current.MinAge && cand.Age <= current.MaxAge {
-			score += 1
+			ageScore += 10
 		}
 	}
 	if cand.MinAge > 0 && cand.MaxAge > 0 {
 		if current.Age >= cand.MinAge && current.Age <= cand.MaxAge {
-			score += 1
+			ageScore += 10
 		}
 	}
+	totalScore += float64(ageScore)
 
-	return score
+	// Ensure we don't exceed 100 (though logic above is capped at 100)
+	if totalScore > 100 {
+		totalScore = 100
+	}
+
+	return int(totalScore)
 }
 
 func (s *matchService) paginate(results []MatchResult, page, limit int) []MatchResult {
