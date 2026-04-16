@@ -74,6 +74,7 @@ func main() {
 		adminHandler,
 		jwtService,
 		redisClient,
+		cfg.AllowedOrigins,
 	)
 
 	// 7. Start Server

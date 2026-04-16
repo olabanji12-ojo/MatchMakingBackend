@@ -26,10 +26,22 @@ func SetupRouter(
 	adminHandler *admin.Handler,
 	jwtService *token.JWTService,
 	redisClient *redis.Client,
+	allowedOrigins string,
 ) http.Handler {
 	r := mux.NewRouter()
 
+	// Root and Health Check
+	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message": "Church Match API is live", "version": "1.0.0"}`))
+	}).Methods("GET")
+
 	v1 := r.PathPrefix("/api/v1").Subrouter()
+
+	v1.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status": "ok", "timestamp": "now"}`))
+	}).Methods("GET")
 
 	// AUTH (public)
 	v1.HandleFunc("/auth/register", authHandler.Register).Methods("POST")
@@ -101,9 +113,31 @@ func SetupRouter(
 
 	// Global CORS Wrapper
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := req.Header.Get("Origin")
+		if origin != "" {
+			// Check if the request origin matches any of the allowed origins
+			allowedList := strings.Split(allowedOrigins, ",")
+			isAllowed := false
+			for _, o := range allowedList {
+				if strings.TrimSpace(o) == origin {
+					isAllowed = true
+					break
+				}
+			}
+
+			if isAllowed {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				// Default behavior or specific fallback
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if req.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

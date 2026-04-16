@@ -18,6 +18,7 @@ type Config struct {
 	JWTExpiryHours          int
 	BcryptCost              int
 	AdminRegistrationSecret string
+	AllowedOrigins          string
 }
 
 func LoadConfig() *Config {
@@ -36,6 +37,7 @@ func LoadConfig() *Config {
 		JWTExpiryHours:          getEnvInt("JWT_EXPIRY_HOURS", 72),
 		BcryptCost:              getEnvInt("BCRYPT_COST", 12),
 		AdminRegistrationSecret: getEnv("ADMIN_REGISTRATION_SECRET", "admin_secret"),
+		AllowedOrigins:          getEnv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000"),
 	}
 }
 
